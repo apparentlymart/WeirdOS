@@ -3,7 +3,7 @@
     {
       "name": "Linux",
       "includePath": ["${workspaceFolder}/**"],
-      "defines": [],
+      "defines": ["DEBUG"],
       "compilerPath": "/usr/bin/clang",
       "cStandard": "c11",
       "cppStandard": "c++17",
