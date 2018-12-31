@@ -1,0 +1,3 @@
+build/*
+src/*
+gcc-x86_64-elf/*
