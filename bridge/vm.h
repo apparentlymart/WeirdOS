@@ -10,9 +10,6 @@ typedef struct {
 typedef struct {
     KVMMain *kvm;
     int fd;
-    char *main_ram;
-    char *kernel_ram;
-    char *kernel_rom;
 } VM;
 
 typedef struct {
@@ -44,9 +41,6 @@ int kvm_main_new_vm(KVMMain *kvm, VM *vm);
 
 // vm_close closes the file descriptor associated with the givem VM, which
 // de-allocates it.
-//
-// This function does NOT free the main_ram, kernel_ram, or kernel_rom. These
-// must be freed by the caller after this function returns successfully.
 //
 // Returns zero on success, or a negative number on failure. If failed, errno
 // is set to the error that occurred opening the file.
