@@ -24,15 +24,14 @@ SECTIONS {
         DATA_VIRT_START = .;
         *(.data)
         DATA_VIRT_END = .;
-        . = ALIGN(4096);
-    } >kernel_ram
+    } >kernel_ram AT>kernel_rom
     .bss : {
         BSS_VIRT_START = .;
         *(.bss)
         *(COMMON)
         BSS_VIRT_END = .;
         . = ALIGN(4096);
-    } >kernel_ram
+    } >kernel_ram AT>kernel_rom
 
     _end = .;
 
