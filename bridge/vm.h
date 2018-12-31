@@ -2,6 +2,10 @@
 #define VM_H
 
 #include <stddef.h>
+#include <stdint.h>
+#include <sys/types.h>
+
+typedef void *guestptr_t;
 
 typedef struct {
     int fd;
@@ -45,6 +49,10 @@ int kvm_main_new_vm(KVMMain *kvm, VM *vm);
 // Returns zero on success, or a negative number on failure. If failed, errno
 // is set to the error that occurred opening the file.
 int vm_close(VM *vm);
+
+// vm_map_rom maps a buffer into the VM memory space in read-only mode.
+int vm_map_rom(
+    VM *vm, u_int32_t slot, char *buf, size_t size, guestptr_t guest_addr);
 
 // vm_new_cpu creates a new VCPU, populating the given VCPU object.
 //

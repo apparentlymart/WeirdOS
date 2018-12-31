@@ -1,8 +1,11 @@
 
 #include "vm.h"
+#include "debuglog.h"
 #include <errno.h>
 #include <fcntl.h>
 #include <linux/kvm.h>
+#include <stdint.h>
+#include <string.h>
 #include <sys/ioctl.h>
 #include <sys/mman.h>
 #include <sys/stat.h>
@@ -107,6 +110,39 @@ err_get_mmap_size:
     cpu->fd = 0;
 err_create:
     return -1;
+}
+
+int vm_map_rom(VM *vm, u_int32_t slot, char *buf, size_t size, void *guest_addr)
+{
+    DEBUG_LOG(
+        "vm_map_rom(%p, %d, %p, %ld, %p)",
+        vm,
+        (int)slot,
+        buf,
+        (long)size,
+        guest_addr);
+    struct kvm_userspace_memory_region reg;
+
+    reg.slot = slot;
+    reg.flags = KVM_MEM_READONLY;
+    reg.userspace_addr = (u_int64_t)buf;
+    reg.memory_size = (u_int64_t)size;
+    reg.guest_phys_addr = (u_int64_t)guest_addr;
+    DEBUG_LOG(
+        "KVM_SET_USER_MEMORY_REGION memory region:\n    slot = %d\n    flags = "
+        "%d\n    userspace_addr = %p\n    memory_size = %ld\n    "
+        "guest_phys_addr = %p",
+        (int)reg.slot,
+        (int)reg.flags,
+        (void *)reg.userspace_addr,
+        (long)reg.memory_size,
+        (void *)reg.guest_phys_addr);
+    if (ioctl(vm->fd, KVM_SET_USER_MEMORY_REGION, &reg) < 0) {
+        DEBUG_LOG("KVM_SET_USER_MEMORY_REGION failed: %s", strerror(errno));
+        return -1;
+    }
+
+    return 0;
 }
 
 int vcpu_close(VCPU *cpu)
