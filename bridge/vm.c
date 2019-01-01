@@ -126,6 +126,14 @@ int vm_map_mem(
 {
     struct kvm_userspace_memory_region reg;
 
+    DEBUG_LOG(
+        "mapping %p into guest slot %d from 0x%016lx to 0x%016lx (%ld MiB)",
+        buf,
+        (int)slot,
+        (long)guest_addr,
+        ((long)guest_addr + (long)size),
+        (long)size / 1024 / 1024);
+
     reg.slot = slot;
     reg.flags = flags;
     reg.userspace_addr = (u_int64_t)buf;

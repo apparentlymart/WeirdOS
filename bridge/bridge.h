@@ -3,15 +3,33 @@
 
 #include "vm.h"
 
-#define GUEST_ROM_START ((guestptr_t)0xffffffff80000000)
-#define GUEST_ROM_SIZE ((size_t)(512 * 1024 * 1024))
-#define GUEST_MAIN_RAM_START ((guestptr_t)0x0000000000000000)
-#define GUEST_MAIN_RAM_SIZE ((size_t)2048 * (size_t)1024 * (size_t)1024)
-#define GUEST_KERNEL_RAM_START ((guestptr_t)0xffffffffa0000000)
-#define GUEST_KERNEL_RAM_SIZE ((size_t)(1536 * 1024 * 1024) - (size_t)0x2000)
-// GUEST_KERNEL_RAM_SIZE leaves one page unused at the end of the memory space
-// because otherwise a check in the kernel fails: START + SIZE is zero, which
-// the kernel considers to be an error because it is less than START.
+#define KILOBYTE ((size_t)1024)
+#define MEGABYTE (KILOBYTE * (size_t)1024)
+#define GIGABYTE (MEGABYTE * (size_t)1024)
+#define PAGE_TABLE_SIZE ((size_t)4096)
+
+#define GUEST_ROM_START_PHYS ((guestptr_t)0x0000000000000000)
+#define GUEST_ROM_START_VIRT ((guestptr_t)0xffffffff80000000)
+#define GUEST_ROM_SIZE ((size_t)512 * MEGABYTE)
+
+#define GUEST_KERNEL_RAM_START_PHYS                                            \
+    ((guestptr_t)(GUEST_ROM_START_PHYS + GUEST_ROM_SIZE))
+#define GUEST_KERNEL_RAM_START_VIRT ((guestptr_t)0xffffffffa0000000)
+#define GUEST_KERNEL_RAM_SIZE ((size_t)1536 * MEGABYTE)
+
+#define GUEST_MAIN_RAM_START_PHYS                                              \
+    ((guestptr_t)(GUEST_KERNEL_RAM_START_PHYS + GUEST_KERNEL_RAM_SIZE))
+#define GUEST_MAIN_RAM_START_VIRT ((guestptr_t)0x0000000000000000)
+#define GUEST_MAIN_RAM_SIZE ((size_t)2 * GIGABYTE)
+
+#define GUEST_KERNEL_START_PHYS GUEST_ROM_START_PHYS
+#define GUEST_KERNEL_START_VIRT GUEST_ROM_START_VIRT
+#define GUEST_KERNEL_SIZE (GUEST_ROM_SIZE + KERNEL_RAM_SIZE)
+
+#define GUEST_KERNEL_STACK_START_VIRT                                          \
+    ((guestptr_t)(GUEST_KERNEL_RAM_START_VIRT - 1 + GUEST_KERNEL_RAM_SIZE))
+#define GUEST_KERNEL_ENTRY_VIRT GUEST_ROM_START_VIRT
+#define GUEST_INIT_PAGE_TABLE_BASE_PHYS GUEST_MAIN_RAM_START_PHYS
 
 typedef struct {
     char *main_ram;

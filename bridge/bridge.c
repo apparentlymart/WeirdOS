@@ -53,8 +53,11 @@ int bridge_init_memory(Bridge *br, int rom_fd)
     }
 
     if (vm_map_rom(
-            &br->vm, 0, br->kernel_rom, rom_size, (guestptr_t)GUEST_ROM_START) <
-        0) {
+            &br->vm,
+            0,
+            br->kernel_rom,
+            rom_size,
+            (guestptr_t)GUEST_ROM_START_PHYS) < 0) {
         DEBUG_LOG("failed to map ROM into Guest VM: %s", strerror(errno));
         return -1;
     }
@@ -79,7 +82,7 @@ int bridge_init_memory(Bridge *br, int rom_fd)
             1,
             br->kernel_ram,
             GUEST_KERNEL_RAM_SIZE,
-            (guestptr_t)GUEST_KERNEL_RAM_START) < 0) {
+            (guestptr_t)GUEST_KERNEL_RAM_START_PHYS) < 0) {
         DEBUG_LOG(
             "failed to map kernel RAM into Guest VM: %s", strerror(errno));
         return -1;
@@ -103,8 +106,9 @@ int bridge_init_memory(Bridge *br, int rom_fd)
             &br->vm,
             2,
             br->main_ram,
-            GUEST_MAIN_RAM_SIZE,
-            (guestptr_t)GUEST_MAIN_RAM_START) < 0) {
+            GUEST_MAIN_RAM_SIZE - MEGABYTE, // FIXME: Mapping the whole space
+                                            // here gives EEXIST. Why?
+            (guestptr_t)GUEST_MAIN_RAM_START_PHYS) < 0) {
         DEBUG_LOG("failed to map main RAM into Guest VM: %s", strerror(errno));
         return -1;
     }

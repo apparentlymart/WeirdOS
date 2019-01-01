@@ -1,6 +1,12 @@
 #include <stddef.h>
 #include <stdint.h>
 
+extern char DATA_LOAD_START;
+extern char DATA_VIRT_START;
+extern char DATA_VIRT_END;
+extern char BSS_VIRT_START;
+extern char BSS_VIRT_END;
+
 static inline void outb(uint16_t port, uint8_t value)
 {
     asm("outb %0,%1" : /* empty */ : "a"(value), "Nd"(port) : "memory");
@@ -8,12 +14,18 @@ static inline void outb(uint16_t port, uint8_t value)
 
 void __attribute__((noreturn)) __attribute__((section(".start"))) _start(void)
 {
-    const char *p;
+    /*const char *p;
 
     for (p = "Hello, world!\n"; *p; ++p)
         outb(0xE9, *p);
 
-    *(long *)0x400 = 42;
+    *(long *)0x400 = 42;*/
+
+    // outb(0xe9, 'H');
+    // outb(0xe9, 'e');
+    // outb(0xe9, 'l');
+    // outb(0xe9, 'l');
+    // outb(0xe9, 'o');
 
     for (;;)
         asm("hlt" : /* empty */ : "a"(42) : "memory");
