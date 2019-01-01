@@ -3,7 +3,7 @@
     {
       "name": "Bridge",
       "includePath": ["${workspaceFolder}/bridge/**"],
-      "defines": ["DEBUG"],
+      "defines": ["DEBUG", "__USE_GNU", "_GNU_SOURCE"],
       "compilerPath": "/usr/bin/gcc",
       "cStandard": "c11",
       "cppStandard": "c++17",
@@ -12,7 +12,7 @@
     {
       "name": "Kernel",
       "includePath": ["${workspaceFolder}/kernel/**"],
-      "defines": ["DEBUG"],
+      "defines": ["DEBUG", "__USE_GNU", "_GNU_SOURCE"],
       "compilerPath": "${workspaceFolder}/toolchain/gcc-x86_64-elf/bin/x86_64-elf-gcc",
       "cStandard": "c11",
       "cppStandard": "c++17",
