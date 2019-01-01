@@ -8,7 +8,7 @@
 #include <unistd.h>
 
 const guestptr_t *GUEST_ROM_START = (void *)0xffffffff80000000;
-const size_t GUEST_ROM_MAX_SIZE = 512 * 1024 * 1024;
+const size_t GUEST_ROM_SIZE = 512 * 1024 * 1024;
 const guestptr_t *GUEST_MAIN_RAM_START = (void *)0x0;
 const size_t GUEST_MAIN_RAM_SIZE = (size_t)4096 * (size_t)1024 * (size_t)1024;
 const guestptr_t *GUEST_KERNEL_RAM_START = (void *)0xffffffffa0000000;
@@ -45,11 +45,11 @@ int bridge_init_memory(Bridge *br, int rom_fd)
     }
 
     size_t rom_size = statbuf.st_size;
-    if (rom_size > GUEST_ROM_MAX_SIZE) {
+    if (rom_size != GUEST_ROM_SIZE) {
         DEBUG_LOG(
-            "ROM file has size %ld, which is greater than limit %ld",
+            "ROM file has size %ld; we expect %ld bytes",
             (long)rom_size,
-            (long)GUEST_ROM_MAX_SIZE);
+            (long)GUEST_ROM_SIZE);
         errno = EINVAL;
         return -1;
     }

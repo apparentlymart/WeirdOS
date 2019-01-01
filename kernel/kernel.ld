@@ -20,6 +20,7 @@ SECTIONS {
         . = ALIGN(4096);
     } >kernel_rom
     .data : {
+        FILL(0xADDBDEC0);
         DATA_LOAD_START = LOADADDR(.data);
         DATA_VIRT_START = .;
         *(.data)
@@ -32,6 +33,12 @@ SECTIONS {
         BSS_VIRT_END = .;
         . = ALIGN(4096);
     } >kernel_ram AT>kernel_rom
+
+    .fill : {
+        FILL(0xAFECDDBACEFAEDFE);
+        . = ORIGIN(kernel_rom) + LENGTH(kernel_rom) - 1;
+        BYTE(0xBA)
+    } > kernel_rom
 
     _end = .;
 
