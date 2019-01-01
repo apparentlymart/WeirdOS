@@ -112,19 +112,18 @@ err_create:
     return -1;
 }
 
-int vm_map_rom(VM *vm, u_int32_t slot, char *buf, size_t size, void *guest_addr)
+int vm_map_mem(
+    VM *vm,
+    u_int32_t slot,
+    char *buf,
+    size_t size,
+    void *guest_addr,
+    uint32_t flags)
 {
-    DEBUG_LOG(
-        "vm_map_rom(%p, %d, %p, %ld, %p)",
-        vm,
-        (int)slot,
-        buf,
-        (long)size,
-        guest_addr);
     struct kvm_userspace_memory_region reg;
 
     reg.slot = slot;
-    reg.flags = KVM_MEM_READONLY;
+    reg.flags = flags;
     reg.userspace_addr = (u_int64_t)buf;
     reg.memory_size = (u_int64_t)size;
     reg.guest_phys_addr = (u_int64_t)guest_addr;
@@ -134,6 +133,32 @@ int vm_map_rom(VM *vm, u_int32_t slot, char *buf, size_t size, void *guest_addr)
     }
 
     return 0;
+}
+
+int vm_map_ram(VM *vm, u_int32_t slot, char *buf, size_t size, void *guest_addr)
+{
+    DEBUG_LOG(
+        "vm_map_ram(%p, %d, %p, 0x%lx, %p)",
+        vm,
+        (int)slot,
+        buf,
+        (long)size,
+        guest_addr);
+
+    return vm_map_mem(vm, slot, buf, size, guest_addr, 0);
+}
+
+int vm_map_rom(VM *vm, u_int32_t slot, char *buf, size_t size, void *guest_addr)
+{
+    DEBUG_LOG(
+        "vm_map_rom(%p, %d, %p, 0x%lx, %p)",
+        vm,
+        (int)slot,
+        buf,
+        (long)size,
+        guest_addr);
+
+    return vm_map_mem(vm, slot, buf, size, guest_addr, KVM_MEM_READONLY);
 }
 
 int vcpu_close(VCPU *cpu)
@@ -154,5 +179,51 @@ int vcpu_close(VCPU *cpu)
         cpu->kvm_run_size = 0;
     }
 
+    return 0;
+}
+
+int vcpu_get_regs(VCPU *cpu, VCPURegs *regs)
+{
+    DEBUG_LOG("vcpu_get_regs(%p, %p) with vcpu fd %d", cpu, regs, cpu->fd);
+
+    if (ioctl(cpu->fd, KVM_GET_REGS, regs) < 0) {
+        DEBUG_LOG("KVM_GET_REGS failed: %s", strerror(errno));
+        return -1;
+    }
+    return 0;
+}
+
+int vcpu_set_regs(VCPU *cpu, VCPURegs *regs)
+{
+    DEBUG_LOG("vcpu_set_regs(%p, %p) with vcpu fd %d", cpu, regs, cpu->fd);
+
+    if (ioctl(cpu->fd, KVM_SET_REGS, regs) < 0) {
+        DEBUG_LOG("KVM_SET_REGS failed: %s", strerror(errno));
+        return -1;
+    }
+    return 0;
+}
+
+int vcpu_get_special_regs(VCPU *cpu, VCPUSpecialRegs *sregs)
+{
+    DEBUG_LOG(
+        "vcpu_get_special_regs(%p, %p) with vcpu fd %d", cpu, sregs, cpu->fd);
+
+    if (ioctl(cpu->fd, KVM_GET_SREGS, sregs) < 0) {
+        DEBUG_LOG("KVM_GET_SREGS failed: %s", strerror(errno));
+        return -1;
+    }
+    return 0;
+}
+
+int vcpu_set_special_regs(VCPU *cpu, VCPUSpecialRegs *sregs)
+{
+    DEBUG_LOG(
+        "vcpu_set_special_regs(%p, %p) with vcpu fd %d", cpu, sregs, cpu->fd);
+
+    if (ioctl(cpu->fd, KVM_SET_SREGS, sregs) < 0) {
+        DEBUG_LOG("KVM_SET_SREGS failed: %s", strerror(errno));
+        return -1;
+    }
     return 0;
 }

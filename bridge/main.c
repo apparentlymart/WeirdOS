@@ -35,6 +35,11 @@ int main(int argc, char **argv)
     printf("VM file descriptor %d\n", br.vm.fd);
     printf("VCPU file descriptor %d\n", br.cpus[0].fd);
 
+    if (bridge_init_cpus(&br) < 0) {
+        perror("bridge_init_cpus");
+        return 1;
+    }
+
     if (bridge_close(&br) < 0) {
         perror("bridge_close");
         return 1;
