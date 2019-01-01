@@ -60,6 +60,11 @@
 #define VCPU_PDE64_PS (1U << 7)
 #define VCPU_PDE64_G (1U << 8)
 
+// If a VM entry failure occurs (KVM_EXIT_FAIL_ENTRY), this bit is set in the
+// VMX-specific exit reason, which is distinct from KVM's concept of exit
+// reason.
+#define VCPU_VMX_EXIT_REASONS_FAILED_VMENTRY (1U << 31)
+
 typedef void *guestptr_t;
 
 typedef struct {
@@ -129,6 +134,10 @@ int vm_new_cpu(VM *vm, VCPU *cpu);
 // Returns zero on success, or a negative number on failure. If failed, errno
 // is set to the error that occurred opening the file.
 int vcpu_close(VCPU *cpu);
+
+// vcpu_run starts running the given virtual CPU, returning once it can make
+// no further progress without the help of the caller.
+int vcpu_run(VCPU *cpu);
 
 // vcpu_get_regs populates the given object with the current register values
 // for the given VCPU.

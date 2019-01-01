@@ -188,6 +188,20 @@ int vcpu_close(VCPU *cpu)
     return 0;
 }
 
+int vcpu_run(VCPU *cpu)
+{
+    DEBUG_LOG("vcpu_run(%p) with vcpu fd %d", cpu, cpu->fd);
+
+    if (ioctl(cpu->fd, KVM_RUN, 0) < 0) {
+        DEBUG_LOG("KVM_RUN failed: %s", strerror(errno));
+        return -1;
+    }
+
+    DEBUG_LOG("KVM_RUN exited with reason code %d", cpu->kvm_run->exit_reason);
+
+    return 0;
+}
+
 int vcpu_get_regs(VCPU *cpu, VCPURegs *regs)
 {
     DEBUG_LOG("vcpu_get_regs(%p, %p) with vcpu fd %d", cpu, regs, cpu->fd);
