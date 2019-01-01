@@ -1,0 +1,26 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "Debug Bridge",
+      "type": "cppdbg",
+      "request": "launch",
+      "program": "${workspaceRoot}/bridge/build/bridge",
+      "args": ["${workspaceRoot}/kernel/build/rom.img"],
+      "stopAtEntry": false,
+      "cwd": "${workspaceRoot}/bridge",
+      "preLaunchTask": "Build Bridge",
+      "environment": [],
+      "externalConsole": false,
+      "linux": {
+        "MIMode": "gdb"
+      },
+      "osx": {
+        "MIMode": "gdb"
+      },
+      "windows": {
+        "MIMode": "gdb"
+      }
+    }
+  ]
+}

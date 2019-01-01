@@ -1,10 +1,19 @@
 {
   "configurations": [
     {
-      "name": "Linux",
-      "includePath": ["${workspaceFolder}/**"],
+      "name": "Bridge",
+      "includePath": ["${workspaceFolder}/bridge/**"],
       "defines": ["DEBUG"],
-      "compilerPath": "/usr/bin/clang",
+      "compilerPath": "/usr/bin/gcc",
+      "cStandard": "c11",
+      "cppStandard": "c++17",
+      "intelliSenseMode": "clang-x64"
+    },
+    {
+      "name": "Kernel",
+      "includePath": ["${workspaceFolder}/kernel/**"],
+      "defines": ["DEBUG"],
+      "compilerPath": "${workspaceFolder}/toolchain/gcc-x86_64-elf/bin/x86_64-elf-gcc",
       "cStandard": "c11",
       "cppStandard": "c++17",
       "intelliSenseMode": "clang-x64"
