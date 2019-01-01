@@ -40,6 +40,11 @@ int main(int argc, char **argv)
         return 1;
     }
 
+    if (bridge_run_cpus(&br) < 0) {
+        perror("bridge_init_cpus");
+        return 1;
+    }
+
     if (bridge_close(&br) < 0) {
         perror("bridge_close");
         return 1;

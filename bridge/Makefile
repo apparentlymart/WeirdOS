@@ -8,7 +8,7 @@ O_FILES := $(patsubst %.s,%.o,$(AS_FILES)) $(patsubst %.c,%.o,$(C_FILES))
 CFLAGS := -g -DDEBUG
 
 $(BUILD_DIR)bridge: $(O_FILES) | $(BUILD_DIR)
-	$(CC) $(CFLAGS) -o $@ $(O_FILES)
+	$(CC) $(CFLAGS) -o $@ $(O_FILES) -lpthread
 
 $(BUILD_DIR):
 	mkdir $@

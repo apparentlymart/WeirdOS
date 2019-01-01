@@ -41,4 +41,8 @@ int bridge_close(Bridge *br);
 // since this function does not perform a total reset of the CPU state.
 int bridge_init_cpus(Bridge *br);
 
+// bridge_run_cpus spawns a thread for each CPU and blocks until they all
+// halt. The CPUs must previously have been initialized with bridge_init_cpus.
+int bridge_run_cpus(Bridge *br);
+
 #endif

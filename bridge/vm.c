@@ -24,6 +24,8 @@ int kvm_main_open(KVMMain *kvm)
 
 int kvm_main_close(KVMMain *kvm)
 {
+    DEBUG_LOG("kvm_main_close(%p)", kvm);
+
     if (kvm->fd == 0) {
         return 0;
     }
@@ -64,6 +66,8 @@ err_create:
 
 int vm_close(VM *vm)
 {
+    DEBUG_LOG("vm_close(%p)", vm);
+
     if (vm->fd == 0) {
         return 0;
     }
@@ -163,6 +167,8 @@ int vm_map_rom(VM *vm, u_int32_t slot, char *buf, size_t size, void *guest_addr)
 
 int vcpu_close(VCPU *cpu)
 {
+    DEBUG_LOG("vcpu_close(%p)", cpu);
+
     if (cpu->fd != 0) {
         if (close(cpu->fd) < 0) {
             return -1;

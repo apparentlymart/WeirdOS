@@ -3,6 +3,7 @@
 #include "vm.h"
 #include <errno.h>
 #include <linux/kvm.h>
+#include <pthread.h>
 #include <string.h>
 
 void bridge_init_cpu_long(Bridge *br, VCPUSpecialRegs *sregs)
@@ -145,5 +146,63 @@ int bridge_init_cpus(Bridge *br)
             return -1;
         }
     }
+    return 0;
+}
+
+struct vcpu_run_args {
+    Bridge *br;
+    int index;
+    VCPU *cpu;
+};
+
+void *bridge_run_cpu(void *args_raw)
+{
+    struct vcpu_run_args *args = (struct vcpu_run_args *)args_raw;
+    DEBUG_LOG(
+        "bridge_run_cpu for CPU %d on VCPU %p (fd %d)",
+        args->index,
+        args->cpu,
+        args->cpu->fd);
+
+    return NULL;
+}
+
+int bridge_run_cpus(Bridge *br)
+{
+    DEBUG_LOG("bridge_run_cpus(%p)", br);
+
+    pthread_t threads[BRIDGE_CPU_COUNT];
+    struct vcpu_run_args args[BRIDGE_CPU_COUNT];
+
+    for (int i = 0; i < BRIDGE_CPU_COUNT; i++) {
+        DEBUG_LOG("creating run thread for VCPU %d", i);
+        args[i].br = br;
+        args[i].index = i;
+        args[i].cpu = &br->cpus[i];
+        int result =
+            pthread_create(&threads[i], NULL, bridge_run_cpu, &args[i]);
+        if (result != 0) {
+            DEBUG_LOG(
+                "pthread_create for VCPU %d failed: %s", i, strerror(result));
+            args[i].br ==
+                NULL; // indicates failed thread for our join loop below
+        }
+    }
+
+    DEBUG_LOG(
+        "waiting for %ld VCPU thread(s) to terminate", (long)BRIDGE_CPU_COUNT);
+    for (int i = 0; i < BRIDGE_CPU_COUNT; i++) {
+        if (args[i].br == NULL) {
+            continue; // indicates that pthread_create failed above
+        }
+        int result = pthread_join(threads[i], NULL);
+        if (result != 0) {
+            DEBUG_LOG(
+                "pthread_join for VCPU %d failed: %s", i, strerror(result));
+            threads[i] == 0;
+        }
+    }
+    DEBUG_LOG("all %ld VCPU thread(s) have exited", (long)BRIDGE_CPU_COUNT);
+
     return 0;
 }

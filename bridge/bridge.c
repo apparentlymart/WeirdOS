@@ -133,6 +133,8 @@ err:
 
 int bridge_close(Bridge *br)
 {
+    DEBUG_LOG("bridge_close(%p)", br);
+
     for (int i = 0; i < BRIDGE_CPU_COUNT; i++) {
         if (vcpu_close(&(br->cpus[i])) < 0) {
             return -1;
