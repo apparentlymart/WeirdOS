@@ -128,15 +128,6 @@ int vm_map_rom(VM *vm, u_int32_t slot, char *buf, size_t size, void *guest_addr)
     reg.userspace_addr = (u_int64_t)buf;
     reg.memory_size = (u_int64_t)size;
     reg.guest_phys_addr = (u_int64_t)guest_addr;
-    DEBUG_LOG(
-        "KVM_SET_USER_MEMORY_REGION memory region:\n    slot = %d\n    flags = "
-        "%d\n    userspace_addr = %p\n    memory_size = %ld\n    "
-        "guest_phys_addr = %p",
-        (int)reg.slot,
-        (int)reg.flags,
-        (void *)reg.userspace_addr,
-        (long)reg.memory_size,
-        (void *)reg.guest_phys_addr);
     if (ioctl(vm->fd, KVM_SET_USER_MEMORY_REGION, &reg) < 0) {
         DEBUG_LOG("KVM_SET_USER_MEMORY_REGION failed: %s", strerror(errno));
         return -1;
