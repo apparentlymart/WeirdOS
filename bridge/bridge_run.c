@@ -209,11 +209,12 @@ void *bridge_run_cpu(void *args_raw)
             if (cpu->kvm_run->io.direction == KVM_EXIT_IO_OUT &&
                 cpu->kvm_run->io.port == 0xE9) {
                 char *p = (char *)cpu->kvm_run;
-                DEBUG_LOG(
-                    "VCPU %d generates console output: %.*s",
-                    args->index,
+                fwrite(
+                    p + cpu->kvm_run->io.data_offset,
                     cpu->kvm_run->io.size,
-                    p + cpu->kvm_run->io.data_offset);
+                    1,
+                    stdout);
+                fflush(stdout);
             } else {
                 switch (cpu->kvm_run->io.direction) {
                 case KVM_EXIT_IO_OUT:
