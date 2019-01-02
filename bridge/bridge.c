@@ -18,7 +18,7 @@ int bridge_init_kvm(Bridge *br)
     }
 
     for (int i = 0; i < BRIDGE_CPU_COUNT; i++) {
-        if (vm_new_cpu(&br->vm, &br->cpus[i]) < 0) {
+        if (vm_new_cpu(&br->vm, &br->cpus[i], i) < 0) {
             return -1;
         }
     }

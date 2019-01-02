@@ -79,11 +79,11 @@ int vm_close(VM *vm)
     return 0;
 }
 
-int vm_new_cpu(VM *vm, VCPU *cpu)
+int vm_new_cpu(VM *vm, VCPU *cpu, int64_t id)
 {
     cpu->vm = vm;
 
-    cpu->fd = ioctl(vm->fd, KVM_CREATE_VCPU, 0);
+    cpu->fd = ioctl(vm->fd, KVM_CREATE_VCPU, id);
     if (cpu->fd < 0) {
         goto err_create;
     }

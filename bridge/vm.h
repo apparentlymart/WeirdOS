@@ -126,7 +126,7 @@ int vm_map_rom(
 //
 // Returns zero on success, or a negative number on failure. If failed, errno
 // is set to the error that occurred opening the file.
-int vm_new_cpu(VM *vm, VCPU *cpu);
+int vm_new_cpu(VM *vm, VCPU *cpu, int64_t id);
 
 // vcpu_close closes the file descriptor associated with the givem VCPU, which
 // de-allocates it.
