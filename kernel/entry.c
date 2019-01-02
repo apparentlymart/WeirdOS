@@ -27,6 +27,13 @@ void __attribute__((noreturn)) __attribute__((section(".start"))) _start(void)
     // outb(0xe9, 'l');
     // outb(0xe9, 'o');
 
+    const char *p;
+    int acc;
+    for (p = "Hello, world!\n"; *p; ++p) {
+        outb(0xE9, *p);
+        acc += *p;
+    }
+
     for (;;)
         asm("hlt" : /* empty */ : "a"(42) : "memory");
 }

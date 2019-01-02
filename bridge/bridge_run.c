@@ -233,6 +233,7 @@ void *bridge_run_cpu(void *args_raw)
                         (int)cpu->kvm_run->io.port);
                 }
             }
+            break;
 
         case KVM_EXIT_SHUTDOWN:
             // For the x86_64 architecture, this reason indicates a triple
