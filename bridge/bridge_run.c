@@ -10,6 +10,8 @@
 
 typedef uint64_t _pagetable_t[512];
 
+#define SYSCALL_COMPLETE (~(uint64_t)0)
+
 void bridge_init_cpu_long(Bridge *br, VCPUSpecialRegs *sregs)
 {
     DEBUG_LOG("bridge_init_cpu_long(%p, %p)", br, sregs);
@@ -187,6 +189,7 @@ struct vcpu_run_args {
     pthread_mutex_t syscall_dev_mutex;
     pthread_cond_t syscall_dev_signal;
     int notify_req;
+    int notify_resp;
     int exit;
 };
 
@@ -212,12 +215,15 @@ void *bridge_run_cpu(void *args_raw)
                 "Failed to run VCPU %d: %s", args->index, strerror(errno));
             break;
         }
+        cpu->kvm_run->request_interrupt_window = 0;
 
         switch (cpu->kvm_run->exit_reason) {
         case KVM_EXIT_IRQ_WINDOW_OPEN:
             // No action required here. On the next loop we'll check for
             // kvm_run->ready_for_interrupt_injection and set inject interrupts
             // if needed.
+            DEBUG_LOG(
+                "VCPU %d has stopped for interrupt injection", args->index);
             continue;
 
         case KVM_EXIT_HLT:
@@ -383,8 +389,8 @@ void *bridge_run_syscall_dev(void *args_raw)
     // main RAM. (FIXME: Maybe better to put this somewhere else so it's
     // less likely to get in the way of normal RAM usage?)
     struct _syscall_dev_msg *msg_vcpu =
-        (struct _syscall_dev_msg *)args->br->main_ram + GIGABYTE +
-        (sizeof(struct _syscall_dev_msg) * args->index);
+        (struct _syscall_dev_msg
+             *)(args->br->main_ram + GIGABYTE + (sizeof(struct _syscall_dev_msg) * args->index));
     struct _syscall_dev_msg msg;
 
     for (;;) {
@@ -409,6 +415,14 @@ void *bridge_run_syscall_dev(void *args_raw)
         memcpy(&msg, msg_vcpu, sizeof(struct _syscall_dev_msg));
         DEBUG_LOG(
             "VCPU %d wants to run syscall %ld", args->index, (long)msg.callnum);
+
+        // TODO: Actually run the system call.
+
+        msg_vcpu->callnum = SYSCALL_COMPLETE;
+        args->notify_resp = 1;
+        __sync_synchronize();
+        vcpu_request_interrupt_window(cpu);
+        __sync_synchronize();
     }
 
     DEBUG_LOG("VCPU %d syscall device terminated", args->index);
@@ -424,6 +438,7 @@ int bridge_run_cpus(Bridge *br)
 
     for (int i = 0; i < BRIDGE_CPU_COUNT; i++) {
         DEBUG_LOG("creating run thread for VCPU %d", i);
+        memset(&args[i], sizeof(args[i]), 1);
         args[i].br = br;
         args[i].index = i;
         args[i].cpu = &br->cpus[i];
