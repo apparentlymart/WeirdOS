@@ -55,6 +55,7 @@
 #define VCPU_PDE64_PRESENT 1
 #define VCPU_PDE64_RW (1U << 1)
 #define VCPU_PDE64_USER (1U << 2)
+#define VCPU_PDE64_NO_CACHE (1U << 2)
 #define VCPU_PDE64_ACCESSED (1U << 5)
 #define VCPU_PDE64_DIRTY (1U << 6)
 #define VCPU_PDE64_PS (1U << 7)
@@ -138,6 +139,12 @@ int vcpu_close(VCPU *cpu);
 // vcpu_run starts running the given virtual CPU, returning once it can make
 // no further progress without the help of the caller.
 int vcpu_run(VCPU *cpu);
+
+// vcpu_request_interrupt_window can be called concurrently with vcpu_run to
+// request that the vcpu_run call should return soon with
+// KVM_EXIT_IRQ_WINDOW_OPEN to allow interrupts to be injected before the next
+// call to vcpu_run.
+void vcpu_request_interrupt_window(VCPU *cpu);
 
 // vcpu_get_regs populates the given object with the current register values
 // for the given VCPU.

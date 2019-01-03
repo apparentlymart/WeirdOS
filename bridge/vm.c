@@ -206,6 +206,11 @@ int vcpu_run(VCPU *cpu)
     return 0;
 }
 
+void vcpu_request_interrupt_window(VCPU *cpu)
+{
+    cpu->kvm_run->request_interrupt_window = 1;
+}
+
 int vcpu_get_regs(VCPU *cpu, VCPURegs *regs)
 {
     DEBUG_LOG("vcpu_get_regs(%p, %p) with vcpu fd %d", cpu, regs, cpu->fd);

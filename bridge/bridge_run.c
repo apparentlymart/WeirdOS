@@ -2,9 +2,11 @@
 #include "debuglog.h"
 #include "vm.h"
 #include <errno.h>
+#include <fcntl.h>
 #include <linux/kvm.h>
 #include <pthread.h>
 #include <string.h>
+#include <sys/stat.h>
 
 typedef uint64_t _pagetable_t[512];
 
@@ -65,10 +67,14 @@ void bridge_init_cpu_long(Bridge *br, VCPUSpecialRegs *sregs)
          VCPU_PDE64_PS |      // Large (1GB) page
          (uint64_t)GUEST_KERNEL_START_PHYS);
     tables[2][0b111111111] =
-        (VCPU_PDE64_PRESENT | // currently in physical memory
-         VCPU_PDE64_RW |      // read+write
-         VCPU_PDE64_USER |    // accessible from user mode
-         VCPU_PDE64_PS |      // Large (1GB) page
+        (VCPU_PDE64_PRESENT |  // currently in physical memory
+         VCPU_PDE64_RW |       // read+write
+         VCPU_PDE64_USER |     // accessible from user mode
+         VCPU_PDE64_PS |       // Large (1GB) page
+         VCPU_PDE64_NO_CACHE | // TEMP: Disable cache here so we can put the
+                               // syscall device I/O space in it. Eventually
+                               // we'll arrange this better so that we can
+                               // disable caching just for one small page.
          (uint64_t)GUEST_KERNEL_START_PHYS + GIGABYTE);
 
     // CR3 is the location of Page Map Level 4
@@ -178,6 +184,10 @@ struct vcpu_run_args {
     Bridge *br;
     int index;
     VCPU *cpu;
+    pthread_mutex_t syscall_dev_mutex;
+    pthread_cond_t syscall_dev_signal;
+    int notify_req;
+    int exit;
 };
 
 void *bridge_run_cpu(void *args_raw)
@@ -195,6 +205,8 @@ void *bridge_run_cpu(void *args_raw)
     int bad_exit = 0;
 
     for (;;) {
+        // TODO: Inject any pending interrupts
+
         if (vcpu_run(cpu) < 0) {
             DEBUG_LOG(
                 "Failed to run VCPU %d: %s", args->index, strerror(errno));
@@ -202,11 +214,29 @@ void *bridge_run_cpu(void *args_raw)
         }
 
         switch (cpu->kvm_run->exit_reason) {
+        case KVM_EXIT_IRQ_WINDOW_OPEN:
+            // No action required here. On the next loop we'll check for
+            // kvm_run->ready_for_interrupt_injection and set inject interrupts
+            // if needed.
+            continue;
+
         case KVM_EXIT_HLT:
             goto done;
 
         case KVM_EXIT_IO:
             if (cpu->kvm_run->io.direction == KVM_EXIT_IO_OUT &&
+                cpu->kvm_run->io.port == 0x01) {
+
+                // This is a notification that at least one new message is
+                // in the syscall device ringbuffer, so we'll pass it on
+                // to the device thread.
+                pthread_mutex_lock(&args->syscall_dev_mutex);
+                args->notify_req = 1;
+                pthread_cond_signal(&args->syscall_dev_signal);
+                pthread_mutex_unlock(&args->syscall_dev_mutex);
+
+            } else if (
+                cpu->kvm_run->io.direction == KVM_EXIT_IO_OUT &&
                 cpu->kvm_run->io.port == 0xE9) {
                 char *p = (char *)cpu->kvm_run;
                 fwrite(
@@ -215,6 +245,14 @@ void *bridge_run_cpu(void *args_raw)
                     1,
                     stdout);
                 fflush(stdout);
+            } else if (
+                cpu->kvm_run->io.direction == KVM_EXIT_IO_OUT &&
+                cpu->kvm_run->io.port == 0x8900) {
+
+                // Shutdown signal
+                DEBUG_LOG("VCPU %d is shutting down cleanly", args->index);
+                goto done;
+
             } else {
                 switch (cpu->kvm_run->io.direction) {
                 case KVM_EXIT_IO_OUT:
@@ -320,15 +358,68 @@ done:
         }
     }
 
-    DEBUG_LOG("VCPU %d is terminating", args->index);
+    DEBUG_LOG("VCPU %d terminated", args->index);
     return NULL;
+}
+
+struct _syscall_dev_msg {
+    uint64_t callnum;
+    uint64_t params[6]; // Unused params should be left set to zero.
+    uint64_t result;
+};
+
+void *bridge_run_syscall_dev(void *args_raw)
+{
+    struct vcpu_run_args *args = (struct vcpu_run_args *)args_raw;
+    DEBUG_LOG(
+        "bridge_run_syscall_dev for CPU %d on VCPU %p (fd %d)",
+        args->index,
+        args->cpu,
+        args->cpu->fd);
+
+    VCPU *cpu = args->cpu;
+
+    // The guest kernel interacts with this device via a space 1GB into the
+    // main RAM. (FIXME: Maybe better to put this somewhere else so it's
+    // less likely to get in the way of normal RAM usage?)
+    struct _syscall_dev_msg *msg_vcpu =
+        (struct _syscall_dev_msg *)args->br->main_ram + GIGABYTE +
+        (sizeof(struct _syscall_dev_msg) * args->index);
+    struct _syscall_dev_msg msg;
+
+    for (;;) {
+        // Wait for either a request or an exit notification.
+        pthread_mutex_lock(&args->syscall_dev_mutex);
+        while (!(args->notify_req || args->exit)) {
+            DEBUG_LOG("VCPU %d syscall device awaiting event", args->index);
+            pthread_cond_wait(
+                &args->syscall_dev_signal, &args->syscall_dev_mutex);
+        }
+        pthread_mutex_unlock(&args->syscall_dev_mutex);
+
+        if (args->exit) {
+            break;
+        }
+
+        pthread_mutex_lock(&args->syscall_dev_mutex);
+        args->notify_req = 0; // Reset until there's another one.
+        pthread_mutex_unlock(&args->syscall_dev_mutex);
+
+        DEBUG_LOG("VCPU %d syscall device request notification", args->index);
+        memcpy(&msg, msg_vcpu, sizeof(struct _syscall_dev_msg));
+        DEBUG_LOG(
+            "VCPU %d wants to run syscall %ld", args->index, (long)msg.callnum);
+    }
+
+    DEBUG_LOG("VCPU %d syscall device terminated", args->index);
 }
 
 int bridge_run_cpus(Bridge *br)
 {
     DEBUG_LOG("bridge_run_cpus(%p)", br);
 
-    pthread_t threads[BRIDGE_CPU_COUNT];
+    pthread_t cpu_threads[BRIDGE_CPU_COUNT];
+    pthread_t dev_threads[BRIDGE_CPU_COUNT];
     struct vcpu_run_args args[BRIDGE_CPU_COUNT];
 
     for (int i = 0; i < BRIDGE_CPU_COUNT; i++) {
@@ -336,11 +427,23 @@ int bridge_run_cpus(Bridge *br)
         args[i].br = br;
         args[i].index = i;
         args[i].cpu = &br->cpus[i];
+        pthread_mutex_init(&args[i].syscall_dev_mutex, NULL);
+        pthread_cond_init(&args[i].syscall_dev_signal, NULL);
         int result =
-            pthread_create(&threads[i], NULL, bridge_run_cpu, &args[i]);
+            pthread_create(&cpu_threads[i], NULL, bridge_run_cpu, &args[i]);
         if (result != 0) {
             DEBUG_LOG(
                 "pthread_create for VCPU %d failed: %s", i, strerror(result));
+            args[i].br ==
+                NULL; // indicates failed thread for our join loop below
+        }
+        result = pthread_create(
+            &dev_threads[i], NULL, bridge_run_syscall_dev, &args[i]);
+        if (result != 0) {
+            DEBUG_LOG(
+                "pthread_create for VCPU %d syscall device failed: %s",
+                i,
+                strerror(result));
             args[i].br ==
                 NULL; // indicates failed thread for our join loop below
         }
@@ -352,11 +455,23 @@ int bridge_run_cpus(Bridge *br)
         if (args[i].br == NULL) {
             continue; // indicates that pthread_create failed above
         }
-        int result = pthread_join(threads[i], NULL);
+        int result = pthread_join(cpu_threads[i], NULL);
         if (result != 0) {
             DEBUG_LOG(
                 "pthread_join for VCPU %d failed: %s", i, strerror(result));
-            threads[i] == 0;
+            cpu_threads[i] == 0;
+        }
+        pthread_mutex_lock(&args[i].syscall_dev_mutex);
+        args[i].exit = 1;
+        pthread_cond_signal(&args[i].syscall_dev_signal);
+        pthread_mutex_unlock(&args[i].syscall_dev_mutex);
+        DEBUG_LOG("waiting for VCPU %d's device thread to terminate", i);
+        result = pthread_join(dev_threads[i], NULL);
+        if (result != 0) {
+            DEBUG_LOG(
+                "pthread_join for VCPU %d device thread failed: %s",
+                i,
+                strerror(result));
         }
     }
     DEBUG_LOG("all %ld VCPU thread(s) have exited", (long)BRIDGE_CPU_COUNT);
